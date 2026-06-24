@@ -1,0 +1,70 @@
+# Frontend WordPress: Deployment + Service NodePort.
+# - replicas 1: el HPA (manifiesto 06) ajustará este número según la carga.
+# - se conecta a MySQL por el nombre del Service ("mysql") gracias al DNS interno
+#   de Kubernetes: mysql.wordpress.svc.cluster.local (basta con "mysql" en el
+#   mismo namespace).
+# - Service NodePort 30093: acceso externo por http://<IP-NODO>:30093
+#   (en Learner Lab no usamos ALB porque requiere permisos IAM no disponibles).
+# - resources con requests de CPU: OBLIGATORIO para que el HPA pueda calcular
+#   el % de uso y decidir cuándo escalar.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wordpress
+  namespace: wordpress
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wordpress
+  template:
+    metadata:
+      labels:
+        app: wordpress
+    spec:
+      containers:
+      - name: wordpress
+        image: wordpress:6.5-apache
+        ports:
+        - containerPort: 80
+        env:
+        - name: WORDPRESS_DB_HOST
+          value: "mysql:3306"            # nombre del Service MySQL
+        - name: WORDPRESS_DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: MYSQL_DATABASE
+        - name: WORDPRESS_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: MYSQL_USER
+        - name: WORDPRESS_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: MYSQL_PASSWORD
+        resources:
+          requests:
+            cpu: "250m"                  # base para el cálculo del HPA
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wordpress
+  namespace: wordpress
+spec:
+  selector:
+    app: wordpress
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+    nodePort: 30093                      # puerto externo (distinto a act31/32)
+  type: NodePort

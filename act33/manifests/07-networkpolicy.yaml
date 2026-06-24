@@ -1,0 +1,30 @@
+# NetworkPolicy: aísla MySQL para que SOLO el frontend WordPress pueda
+# conectarse a su puerto 3306. Cualquier otro Pod queda bloqueado.
+#
+# Es una buena práctica de seguridad: la base de datos no debe ser accesible
+# desde toda la red del cluster, solo desde quien la necesita.
+#
+# REQUISITO IMPORTANTE — enforcement:
+#   El VPC CNI de EKS solo APLICA las NetworkPolicies si tiene habilitado
+#   ENABLE_NETWORK_POLICY=true en el daemonset aws-node. Si no está activo,
+#   Kubernetes ACEPTA este objeto pero NO lo aplica (no bloquea nada).
+#   La preparación del cluster (setup) debe activar ese flag.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mysql-allow-wordpress
+  namespace: wordpress
+spec:
+  podSelector:
+    matchLabels:
+      app: mysql                 # esta política aplica a los Pods de MySQL
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: wordpress         # solo se permite tráfico desde WordPress
+    ports:
+    - protocol: TCP
+      port: 3306

@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-v2
+  namespace: monitoring
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: prometheus-v2
+
+  template:
+    metadata:
+      labels:
+        app: prometheus-v2
+    spec:
+      containers:
+      - name: prometheus
+        # Imagen pública de referencia — reemplaza con tu imagen ECR si la tienes:
+        # image: <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/prometheus-healthtrack:1.0.0
+        image: prom/prometheus:latest
+
+        ports:
+        - containerPort: 9090
+
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+
+        envFrom:
+        - configMapRef:
+            name: prometheus-config

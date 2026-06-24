@@ -1,0 +1,28 @@
+# HorizontalPodAutoscaler para el frontend WordPress.
+# Escala el número de réplicas entre 1 y 5 según el uso de CPU.
+# Cuando el promedio de CPU supere el 50% de los requests (250m → umbral 125m),
+# Kubernetes crea más Pods; cuando baja, los reduce.
+#
+# REQUISITOS:
+#   - Metrics Server instalado (provee las métricas de CPU). En este cluster ya
+#     está disponible (kubectl top responde).
+#   - El Deployment debe declarar resources.requests.cpu (ya lo hace el 05).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: wordpress-hpa
+  namespace: wordpress
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: wordpress
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50

@@ -1,0 +1,66 @@
+# Base de datos MySQL: Deployment (1 réplica) + Service ClusterIP.
+# - 1 réplica: las bases de datos relacionales no se escalan horizontalmente
+#   con solo añadir Pods (requieren replicación). Por eso NO lleva HPA.
+# - Service ClusterIP: solo accesible DENTRO del cluster (WordPress lo consume).
+# - strategy Recreate: evita que dos Pods monten el mismo volumen ReadWriteOnce
+#   a la vez durante una actualización.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: wordpress
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      # Ancla el Pod al nodo etiquetado mysql-node=true, que es donde vive el
+      # volumen hostPath con los datos. Así el Pod siempre encuentra su base de
+      # datos tras un reinicio.
+      nodeSelector:
+        mysql-node: "true"
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        # Las credenciales vienen del Secret (mysql-secret)
+        envFrom:
+        - secretRef:
+            name: mysql-secret
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+        volumeMounts:
+        - name: mysql-data
+          mountPath: /var/lib/mysql      # donde MySQL guarda los datos
+      volumes:
+      - name: mysql-data
+        persistentVolumeClaim:
+          claimName: mysql-pvc           # usa el PVC del manifiesto 03
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: wordpress
+spec:
+  selector:
+    app: mysql
+  ports:
+  - protocol: TCP
+    port: 3306
+    targetPort: 3306
+  type: ClusterIP                        # solo acceso interno

@@ -1,0 +1,8 @@
+.env
+*.env
+.DS_Store
+Thumbs.db
+*.tar
+kubeconfig
+*.pem
+*.ppk

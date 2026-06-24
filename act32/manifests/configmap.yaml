@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  APP_ENV: "production"
+  LOG_LEVEL: "info"
+  PROMETHEUS_RETENTION_TIME: "15d"

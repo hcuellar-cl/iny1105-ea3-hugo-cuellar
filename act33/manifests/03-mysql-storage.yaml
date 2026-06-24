@@ -1,0 +1,54 @@
+# Almacenamiento persistente para MySQL usando hostPath.
+#
+# hostPath monta un directorio del DISCO DE UN NODO dentro del Pod. Con
+# type: DirectoryOrCreate, Kubernetes crea la carpeta /mnt/data/mysql si no
+# existe.
+#
+# Para que el Pod de MySQL SIEMPRE encuentre sus datos, lo anclamos a un nodo
+# concreto con un nodeSelector en su Deployment (ver 04-mysql.yaml): el Pod se
+# programará siempre en el nodo con la etiqueta mysql-node=true, que es donde
+# vive este volumen.
+#
+# IMPORTANTE: antes de aplicar este manifiesto debes etiquetar UN nodo:
+#   NODO=$(kubectl get nodes -o jsonpath='{.items[0].metadata.name}')
+#   kubectl label node "$NODO" mysql-node=true
+#
+# NOTA DIDÁCTICA — hostPath vs EBS/EFS:
+#   - hostPath + nodeSelector: simple, sin permisos AWS, pero atado a UN nodo.
+#     Si ese nodo muere, los datos se pierden. Útil para aprender PV/PVC.
+#   - EBS (ReadWriteOnce): volumen de bloque que se "sigue" al Pod entre nodos.
+#     Es lo correcto para una base de datos en producción.
+#   - EFS (ReadWriteMany): sistema de archivos compartido entre varios nodos.
+#     Ideal para contenido compartido (ej: /wp-content de varias réplicas WP).
+#   En este Learner Lab usamos hostPath porque EBS/EFS requieren permisos IAM
+#   o configuración de red no disponibles.
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv
+  labels:
+    app: mysql
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce          # un solo nodo monta el volumen (como EBS)
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual   # PV estático: no usa aprovisionamiento dinámico
+  hostPath:
+    path: /mnt/data/mysql
+    type: DirectoryOrCreate  # crea la carpeta en el nodo si no existe
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+  namespace: wordpress
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual   # debe coincidir con el PV de arriba
+  resources:
+    requests:
+      storage: 2Gi
