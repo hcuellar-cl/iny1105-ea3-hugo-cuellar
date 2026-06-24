@@ -1,0 +1,41 @@
+# Almacenamiento persistente para PostgreSQL usando hostPath.
+#
+# hostPath monta un directorio en el disco del nodo de Kubernetes.
+# Usamos el tipo DirectoryOrCreate para que la carpeta /mnt/data/postgres se cree automáticamente.
+#
+# Para asegurar la persistencia, el Pod de PostgreSQL debe programarse siempre en el mismo nodo.
+# Por tanto, se debe etiquetar un nodo con la etiqueta "postgres-node=true" antes de aplicar el despliegue.
+#
+# Comando para etiquetar el nodo en CloudShell:
+#   NODO=$(kubectl get nodes -o jsonpath='{.items[0].metadata.name}')
+#   kubectl label node "$NODO" postgres-node=true
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgres-pv
+  labels:
+    app: postgres
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  hostPath:
+    path: /mnt/data/postgres
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: pmotrack
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  resources:
+    requests:
+      storage: 2Gi

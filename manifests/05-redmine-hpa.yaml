@@ -1,0 +1,28 @@
+# HorizontalPodAutoscaler (HPA) para el frontend de Redmine.
+#
+# Escala de manera automática las réplicas del Deployment "redmine" entre 1 y 5.
+# La condición de escalado se activa cuando el promedio de consumo de CPU de los Pods supera el 50%
+# del recurso solicitado (250m de CPU).
+#
+# Requisitos para su correcto funcionamiento:
+#   1. Metrics Server instalado en el cluster (kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml)
+#   2. Declarar resources.requests.cpu en el Deployment (configurado en 04-redmine.yaml)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: redmine-hpa
+  namespace: pmotrack
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: redmine
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50

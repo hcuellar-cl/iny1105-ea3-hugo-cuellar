@@ -1,0 +1,67 @@
+# Frontend Redmine: Deployment + Service NodePort.
+#
+# - replicas: Iniciamos con 1 réplica. El HPA escalará dinámicamente según el consumo de CPU.
+# - Conexión a BD: Se conecta al servicio "postgres" usando variables de entorno que cargan del Secret.
+# - Service NodePort: Expone la aplicación externamente por el puerto 30093.
+# - resources.requests.cpu: Obligatorio para que el HPA calcule el porcentaje de uso de CPU.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redmine
+  namespace: pmotrack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redmine
+  template:
+    metadata:
+      labels:
+        app: redmine
+    spec:
+      containers:
+      - name: redmine
+        image: redmine:5
+        ports:
+        - containerPort: 3000
+        env:
+        - name: REDMINE_DB_POSTGRES
+          value: "postgres"
+        - name: REDMINE_DB_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_DB
+        - name: REDMINE_DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_USER
+        - name: REDMINE_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_PASSWORD
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "300Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redmine
+  namespace: pmotrack
+spec:
+  selector:
+    app: redmine
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3000
+    nodePort: 30093
+  type: NodePort

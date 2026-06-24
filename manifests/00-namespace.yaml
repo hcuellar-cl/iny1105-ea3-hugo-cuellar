@@ -1,0 +1,7 @@
+# Definición del Namespace para aislar los recursos del proyecto PMOTrack.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pmotrack
+  labels:
+    proyecto: pmotrack

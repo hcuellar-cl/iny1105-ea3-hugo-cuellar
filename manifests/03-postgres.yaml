@@ -1,0 +1,76 @@
+# Despliegue de la Base de Datos PostgreSQL: Deployment (1 réplica) + Service ClusterIP.
+# 
+# - 1 réplica: no se escala horizontalmente para evitar inconsistencias de datos sin réplicas de BD.
+# - Service ClusterIP: expone la base de datos de manera interna en el puerto 5432.
+# - Recreate Strategy: detiene el Pod viejo antes de iniciar el nuevo para no violar la restricción ReadWriteOnce del PVC.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: pmotrack
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      # Asegura que el Pod siempre se ejecute en el nodo con el disco persistente
+      nodeSelector:
+        postgres-node: "true"
+      containers:
+      - name: postgres
+        image: postgres:16
+        ports:
+        - containerPort: 5432
+        # Carga todas las variables de entorno desde el secreto
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_DB
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_PASSWORD
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-data
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: pmotrack
+spec:
+  selector:
+    app: postgres
+  ports:
+  - protocol: TCP
+    port: 5432
+    targetPort: 5432
+  type: ClusterIP
